@@ -1,52 +1,52 @@
 ```markdown
 
-\# Pull Request
+# Pull Request
 
 
 
-\## Description
+## Description
 
 Please include a summary of the changes and the related issue (if any). Explain why these changes were made.
 
 
 
-\## Files Changed
+## Files Changed
 
 List the main files/folders affected:
 
 
 
-\- `/docs/`
+- `/docs/`
 
-\- `/database/`
+- `/database/`
 
-\- Other relevant files
+- Other relevant files
 
 
 
-\## Testing Instructions
+## Testing Instructions
 
 How can reviewers test or verify your changes?
 
 
 
-1\. Step 1
+1. Step 1
 
-2\. Step 2
+2. Step 2
 
-3\. Step 3
+3. Step 3
 
 
 
-\## Checklist
+## Checklist
 
-\- \[ ] Branch created from `main`
+- [ ] Branch created from `main`
 
-\- \[ ] Follows folder structure guidelines
+- [ ] Follows folder structure guidelines
 
-\- \[ ] Commit messages are clear
+- [ ] Commit messages are clear
 
-\- \[ ] PR description complete
+- [ ] PR description complete
 
-\- \[ ] Assigned reviewers
+- [ ] Assigned reviewers
 

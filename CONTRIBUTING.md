@@ -16,7 +16,7 @@ Thank you for contributing! This guide explains how to work on this repository i
 
 1. **Do not commit directly to `main`.**  
 
-2. **Create a feature branch** for every new task/feature/fix:
+2. **Create a feature branch** for every new task/feature/fix:**
 
 
 

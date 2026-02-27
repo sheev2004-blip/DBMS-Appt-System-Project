@@ -62,4 +62,4 @@ This system demonstrates core database design principles including relational mo
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/DBMS-Appt-System-Project.git
+   git clone https://github.com/sheev2004-blip/DBMS-Appt-System-Project.git

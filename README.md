@@ -6,7 +6,7 @@ Developed for CSCI 4560-5560: Database Management Systems.
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
 The Clinic Appointment Management System is designed to help medical clinics efficiently manage:
 
@@ -19,7 +19,7 @@ This system demonstrates core database design principles including relational mo
 
 ---
 
-## 🚀 Features
+## Features
 
 - Create, update, and delete patient records
 - Schedule and cancel appointments
@@ -31,7 +31,7 @@ This system demonstrates core database design principles including relational mo
 
 ---
 
-## 🛠 Technologies Used
+## Technologies Used
 
 - SQL (MySQL)
 - Python Flask Framework
@@ -39,7 +39,7 @@ This system demonstrates core database design principles including relational mo
 
 ---
 
-## 🗄 Database Design
+## Database Design
 
 ### Main Entities
 
@@ -58,7 +58,7 @@ This system demonstrates core database design principles including relational mo
 
 ---
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 
 1. Clone the repository:
    ```bash

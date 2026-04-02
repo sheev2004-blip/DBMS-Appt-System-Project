@@ -1,0 +1,202 @@
+ <!DOCTYPE html>
+<html>
+<head>
+<title>Admin Dashboard</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+
+body{
+background:linear-gradient(135deg,#eef2ff,#f8f9fc);
+font-family:'Segoe UI',sans-serif;
+}
+
+/* Sidebar */
+.sidebar{
+height:100vh;
+background:linear-gradient(to bottom,#4e73df,#6f42c1);
+color:white;
+padding:25px;
+position:fixed;
+width:220px;
+}
+
+.sidebar h4{
+font-weight:600;
+margin-bottom:30px;
+}
+
+.sidebar a{
+color:white;
+display:block;
+margin:15px 0;
+text-decoration:none;
+font-weight:500;
+}
+
+.sidebar a:hover{
+opacity:0.8;
+}
+
+/* Main */
+.main{
+margin-left:240px;
+padding:30px;
+}
+
+/* Cards */
+.card{
+border-radius:15px;
+border:none;
+}
+
+/* Tables */
+.table{
+border-radius:10px;
+overflow:hidden;
+}
+
+.header-title{
+font-weight:600;
+color:#4e73df;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+
+<h4>SmartCare Admin</h4>
+
+<a href="/admin">Dashboard</a>
+<a href="#doctors">Doctors</a>
+<a href="#patients">Patients</a>
+<a href="/logout">Logout</a>
+
+</div>
+
+<!-- Main Content -->
+<div class="main">
+
+<h2 class="header-title">Admin Dashboard</h2>
+<p class="text-muted">Overview of system performance and users</p>
+
+
+<!-- Stats Cards -->
+<div class="row mt-4">
+
+<div class="col-md-4">
+<div class="card shadow p-4 text-center">
+<h6 class="text-muted">Total Revenue</h6>
+<h2 class="text-success">${{ revenue if revenue else 0 }}</h2>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card shadow p-4 text-center">
+<h6 class="text-muted">Total Doctors</h6>
+<h2 class="text-primary">{{ doctors|length }}</h2>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card shadow p-4 text-center">
+<h6 class="text-muted">Total Patients</h6>
+<h2 class="text-warning">{{ patients|length }}</h2>
+</div>
+</div>
+
+</div>
+
+
+<!-- Doctors Table -->
+<div class="card shadow mt-5 p-4" id="doctors">
+
+<h5 class="mb-3">Doctors</h5>
+
+<table class="table table-hover">
+
+<thead class="table-primary">
+
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Specialization</th>
+<th>Phone</th>
+<th>Email</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for d in doctors %}
+
+<tr>
+
+<td>{{ d.doctor_id }}</td>
+<td>{{ d.first_name }} {{ d.last_name }}</td>
+<td>{{ d.specialization }}</td>
+<td>{{ d.phone }}</td>
+<td>{{ d.email }}</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+
+
+<!-- Patients Table -->
+<div class="card shadow mt-5 p-4" id="patients">
+
+<h5 class="mb-3">Patients</h5>
+
+<table class="table table-hover">
+
+<thead class="table-success">
+
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Email</th>
+<th>Phone</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for p in patients %}
+
+<tr>
+
+<td>{{ p.patient_id }}</td>
+<td>{{ p.first_name }} {{ p.last_name }}</td>
+<td>{{ p.email }}</td>
+<td>{{ p.phone }}</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</body>
+</html>

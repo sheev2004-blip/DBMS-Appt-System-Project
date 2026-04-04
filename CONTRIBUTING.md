@@ -1,138 +1,165 @@
-# Contributing to DBMS Appointment System Project
+# Contributing to SmartCare Clinic System
 
+Thank you for your interest in contributing to this project.
 
-
-Thank you for contributing! This guide explains how to work on this repository in a clean, organized way.
-
-
+This repository is part of a collaborative Database Management Systems (DBMS) project. Contributions are focused on extending the system with new features, improving code quality, and enhancing security and data-driven functionality.
 
 ---
 
+## Contribution Overview
 
+The project consists of two main phases:
 
-## Branching Rules
+* **Core System Development**
+  Initial implementation of the clinic management system, including database schema, UI, and core functionality.
 
+* **System Extension (Ongoing)**
+  Enhancements focused on:
 
+  * Cybersecurity (e.g., secure authentication, activity monitoring)
+  * Data-driven features (e.g., anomaly detection, scheduling improvements)
 
-1. **Do not commit directly to `main`.**  
+Contributors may work on either improving existing components or adding new features.
 
-2. **Create a feature branch for every new task/feature/fix:**
+---
 
+## Getting Started
 
+### 1. Clone the Repository
 
 ```bash
+git clone https://github.com/sheev2004-blip/DBMS-Appt-System-Project.git
+cd DBMS-Appt-System-Project
+```
 
+### 2. Set Up the Environment
+
+* Install Python dependencies:
+
+```bash
+pip install flask mysql-connector-python
+```
+
+* Set up the MySQL database using:
+
+```text
+database/clinic_db.sql
+```
+
+* Configure environment variables for database credentials and secret keys.
+
+---
+
+## Development Guidelines
+
+### General Guidelines
+
+* Keep code clean, readable, and well-structured
+* Follow consistent naming conventions
+* Avoid hardcoding sensitive information (e.g., passwords, secret keys)
+* Test changes before committing
+
+---
+
+### Git Workflow
+
+#### Create a Feature Branch
+
+Always create a new branch for your work:
+
+```bash
 git checkout -b feature/your-feature-name
+```
 
+Examples:
 
+* `feature/password-hashing`
+* `feature/anomaly-detection`
+* `feature/scheduling-optimization`
 
-3. **Branch names should be lowercase, hyphen-separated, e.g.:**
+---
 
+#### Make Clear Commits
 
+Write meaningful commit messages that describe your changes:
 
-feature/database-diagram
+```bash
+git commit -m "Implement password hashing for authentication"
+git commit -m "Add access logging for anomaly detection"
+```
 
-feature/login-page
+Avoid vague messages like:
 
-bugfix/fix-sql-error
+* "fix stuff"
+* "update"
 
+---
 
+#### Push Changes
 
-## Folder Structure
+```bash
+git push origin feature/your-feature-name
+```
 
+---
 
+#### Open a Pull Request
 
-**Organize files according to this structure**
+* Provide a clear description of what you implemented
+* Mention any related features or issues
+* Ensure your code integrates cleanly with the existing system
 
+---
 
+## Code Organization
 
-/docs
+* `app.py` — Main Flask application
+* `templates/` — HTML templates for UI
+* `database/` — SQL schema and setup scripts
 
-- images, diagrams, documentation
+Keep new features consistent with this structure.
 
-/database
+---
 
-- schema.sql, seed files, etc.
+## Areas for Contribution
 
+Contributors are encouraged to work on:
 
+### Cybersecurity
 
-## Commit Guidelines
+* Password hashing and secure authentication
+* Activity logging and monitoring
+* Detection of suspicious user behavior
 
+### Data and Analytics
 
+* Anomaly detection
+* Smart scheduling recommendations
+* Patient health risk analysis
 
-**Use clear, concise messages describing what you changed.**
+### General Improvements
 
+* UI/UX enhancements
+* Code refactoring
+* Performance optimization
 
+---
 
-Example commit message format:
+## Contribution Etiquette
 
+* Be respectful of other contributors' work
+* Do not overwrite or remove others’ contributions without discussion
+* Clearly communicate major changes with the team
+* Ask questions if unsure before making significant modifications
 
+---
 
-Add initial database schema
+## Notes
 
-Fix typo in login page
+This project is for educational purposes. Contributions should prioritize learning, collaboration, and clean implementation of concepts.
 
-Update diagram for appointment workflow
+---
 
+## Contact
 
-
-## Pull Requests (PRs)
-
-
-
-1. Push your feature branch to GitHub:
-
-
-
--git push origin feature/your-feature-name
-
-
-
-2. Open a Pull Request (PR) against main.
-
-
-
-3. Assign at least one teammate to review your PR.
-
-
-
-4. PR description should include:
-
-
-
--What was added/changed
-
-
-
--Any files/folders affected
-
-
-
--Testing instructions, if applicable
-
-
-
-5. Wait for approval before merging.
-
-
-
-6. Delete your feature branch after merging.
-
-
-
-
-
-## Additional Notes:
-
-
-
--Keep your changes small and focused on a single task.
-
-
-
--If you’re unsure about something, open an issue first.
-	
-
-
--Respect code organization and naming conventions.
-
+For questions or coordination, communicate with your team through your agreed-upon channels (e.g., group chat, email, or GitHub discussions).

@@ -114,6 +114,89 @@ color:#4e73df;
 
 </div>
 
+
+<!-- Doctors Table -->
+<div class="card shadow mt-5 p-4" id="doctors">
+
+<h5 class="mb-3">Doctors</h5>
+
+<table class="table table-hover">
+
+<thead class="table-primary">
+
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Specialization</th>
+<th>Phone</th>
+<th>Email</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for d in doctors %}
+
+<tr>
+
+<td>{{ d.doctor_id }}</td>
+<td>{{ d.first_name }} {{ d.last_name }}</td>
+<td>{{ d.specialization }}</td>
+<td>{{ d.phone }}</td>
+<td>{{ d.email }}</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+
+
+<!-- Patients Table -->
+<div class="card shadow mt-5 p-4" id="patients">
+
+<h5 class="mb-3">Patients</h5>
+
+<table class="table table-hover">
+
+<thead class="table-success">
+
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Phone</th>
+<th>Email</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{% for p in patients %}
+
+<tr>
+
+<td>{{ p.patient_id }}</td>
+<td>{{ p.first_name }} {{ p.last_name }}</td>
+<td>{{ p.phone }}</td>
+<td>{{ p.email }}</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
 <div class="card shadow mt-5 p-4" id = "blockedusers">
 <h5>Blocked Users ({{ blocked_users|length }})</h5>
 
@@ -253,88 +336,6 @@ color:#4e73df;
 {% else %}
 <p class="text-muted">No suspicious IP addresses</p>
 {% endif %}
-
-</div>
-
-<!-- Doctors Table -->
-<div class="card shadow mt-5 p-4" id="doctors">
-
-<h5 class="mb-3">Doctors</h5>
-
-<table class="table table-hover">
-
-<thead class="table-primary">
-
-<tr>
-<th>ID</th>
-<th>Name</th>
-<th>Specialization</th>
-<th>Phone</th>
-<th>Email</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-{% for d in doctors %}
-
-<tr>
-
-<td>{{ d.doctor_id }}</td>
-<td>{{ d.first_name }} {{ d.last_name }}</td>
-<td>{{ d.specialization }}</td>
-<td>{{ d.phone }}</td>
-<td>{{ d.email }}</td>
-
-</tr>
-
-{% endfor %}
-
-</tbody>
-
-</table>
-
-</div>
-
-
-
-<!-- Patients Table -->
-<div class="card shadow mt-5 p-4" id="patients">
-
-<h5 class="mb-3">Patients</h5>
-
-<table class="table table-hover">
-
-<thead class="table-success">
-
-<tr>
-<th>ID</th>
-<th>Name</th>
-<th>Phone</th>
-<th>Email</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-{% for p in patients %}
-
-<tr>
-
-<td>{{ p.patient_id }}</td>
-<td>{{ p.first_name }} {{ p.last_name }}</td>
-<td>{{ p.phone }}</td>
-<td>{{ p.email }}</td>
-
-</tr>
-
-{% endfor %}
-
-</tbody>
-
-</table>
 
 </div>
 

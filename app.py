@@ -370,6 +370,27 @@ def complete(appointment_id):
     """, (appointment_id,))
     db.commit()
 
+    cursor.execute("""SELECT patient_id
+FROM Appointments
+WHERE appointment_id = %s""",
+(appointment_id,))
+    appt_info = cursor.fetchone()
+
+    cursor.execute("""SELECT bill_id
+FROM Billing
+WHERE appointment_id = %s""",(appointment_id,))
+    exists = cursor.fetchone()
+    
+    if exists:
+        return redirect('/doctor')
+    
+    cursor.execute("""
+    INSERT INTO Billing
+    (patient_id, appointment_id, consultation_fee, medicine_charges, lab_charges, payment_status)
+    VALUES (%s, %s, %s, %s, %s, %s)
+""", (appt_info['patient_id'], appointment_id, 100, 100, 100, 'Unpaid'))
+
+    db.commit()
     return redirect('/doctor')
 
 
@@ -455,6 +476,11 @@ def add_record(appointment_id):
         weight = request.form['weight']
         height = request.form['height']
 
+        if weight == '':
+            weight = None
+
+        if height == '':
+            height = None
         
         # Get patient + doctor from appointment
         cursor.execute("""
@@ -480,6 +506,8 @@ def add_record(appointment_id):
         return redirect('/doctor')
 
     return render_template('add_record.html', appointment_id=appointment_id)
+
+
 
 @app.route('/admin')
 def admin():
@@ -694,6 +722,13 @@ def patient():
     patient_data = cursor.fetchone()
     patient_id = patient_data['patient_id']
 
+    cursor.execute("""SELECT appointment_id, total_amount, payment_status
+FROM Billing
+WHERE patient_id = %s
+ORDER BY appointment_id DESC""",
+(patient_data['patient_id'],))
+
+    billing_records = cursor.fetchall()
     # Total appointments
     cursor.execute(
         "SELECT COUNT(*) AS total FROM Appointments WHERE patient_id = %s",
@@ -719,7 +754,7 @@ def patient():
 
     # Fetch appointment list
     cursor.execute("""
-        SELECT appointment_date, appointment_time, status
+        SELECT appointment_date, appointment_time, status, appointment_id
         FROM Appointments
         WHERE patient_id = %s
         ORDER BY appointment_date
@@ -731,8 +766,148 @@ def patient():
         total=total,
         completed=completed,
         upcoming=upcoming,
-        appointments=appointments
+        appointments=appointments,
+        billing_records=billing_records
     )
+
+@app.route('/book_appointment', methods=['GET', 'POST'])
+def book_appointment():
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Patient':
+        return redirect('/login')
+     
+    if request.method == 'GET':
+    
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("SELECT * FROM Doctors")
+
+        doctors = cursor.fetchall()
+
+        return render_template(
+            'book_appt.html',
+            doctors=doctors
+        )
+
+    if request.method == 'POST':
+        cursor = db.cursor(dictionary=True)
+
+        doctor_id = request.form['doctor_id']
+        date = request.form['appointment_date']
+        time = request.form['appointment_time']
+
+        cursor.execute(
+        "SELECT patient_id FROM Patients WHERE user_id = %s",
+        (session['user_id'],)
+        )
+        result = cursor.fetchone()
+
+        if result is None:
+            return redirect('/patient')
+
+        patient_id = result['patient_id']
+
+        cursor.execute(
+        "SELECT doctor_id, available_from, available_to FROM Doctors WHERE doctor_id = %s",
+        (doctor_id,)
+        )
+        doctor = cursor.fetchone()
+
+        if doctor is None:
+            return redirect('/patient')
+        if (doctor['available_from'] is not None and doctor['available_to'] is not None):
+            if time < str(doctor['available_from']) or time > str(doctor['available_to']):
+                return redirect('/book_appointment')
+        
+        cursor.execute(
+        "SELECT appointment_id FROM Appointments WHERE doctor_id = %s AND appointment_date = %s AND appointment_time = %s AND status = 'Scheduled'",
+        (doctor_id, date, time)
+        )
+        result = cursor.fetchone()
+
+        if result:
+            return render_template('book_appt.html', error='Error: Time slot already taken')
+        
+        cursor.execute("""
+        INSERT INTO Appointments
+        (patient_id, doctor_id, appointment_date, appointment_time, status)
+        VALUES (%s, %s, %s, %s, %s)
+        """, (patient_id, doctor_id, date, time, 'Scheduled'))
+        db.commit()
+
+        return redirect('/patient')
+    
+    
+@app.route('/cancel_patient/<int:appointment_id>', methods=['POST'])
+def cancel_patient(appointment_id):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Patient':
+        return redirect('/login')
+    
+    if request.method == 'POST':
+        cursor = db.cursor(dictionary=True)
+        cursor.execute(
+        "SELECT patient_id FROM Patients WHERE user_id = %s",
+        (session['user_id'],)
+        )
+        result = cursor.fetchone()
+
+        if result is None:
+            return redirect('/patient')
+
+        patient_id = result['patient_id']
+        cursor.execute("SELECT patient_id FROM Appointments WHERE appointment_id = %s",
+                       (appointment_id,))
+        result = cursor.fetchone()
+
+        if (patient_id != result['patient_id']):
+            return redirect('/patient')
+        
+        cursor.execute("UPDATE Appointments SET status = 'Cancelled' WHERE appointment_id = %s",
+                       (appointment_id,))
+        db.commit()
+
+    return redirect("/patient")
+
+@app.route('/medical_records')
+def medical_records():
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Patient':
+        return redirect('/login')
+    
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(
+        "SELECT patient_id FROM Patients WHERE user_id = %s",
+        (session['user_id'],)
+        )
+    result = cursor.fetchone()
+    if result is None:
+        return redirect('/patient')
+
+    patient_id = result['patient_id']
+
+    cursor.execute("""SELECT CONCAT(p.first_name, ' ', p.last_name) AS name,
+       m.diagnosis,
+       m.treatment_notes,
+       m.blood_pressure,
+       m.weight,
+       m.height
+FROM MedicalRecords m
+JOIN Patients p ON m.patient_id = p.patient_id
+WHERE m.patient_id = %s
+ORDER BY m.appointment_id DESC""",
+                   (patient_id,))
+    records = cursor.fetchall()
+
+    return render_template('medical_records.html',
+                           records=records)
+
 # Logout Route (ADD HERE)
 @app.route('/logout')
 def logout():

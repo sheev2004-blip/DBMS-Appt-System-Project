@@ -1,8 +1,17 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, flash, abort
+from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 import os
+import secrets
 
 app = Flask(__name__)
+
+def get_csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(16)
+    return session['csrf_token']
+
+app.jinja_env.globals['csrf_token'] = get_csrf_token
 
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-key")
 
@@ -12,6 +21,13 @@ db = mysql.connector.connect(
     password=os.environ.get("DB_PASSWORD"),
     database=os.environ.get("DB_NAME", "clinic_db")
 )
+
+@app.before_request
+def csrf_protect():
+    if request.method == "POST":
+        token = request.form.get("csrf_token")
+        if not token or token != session.get("csrf_token"):
+            abort(400)
 
 # Homepage
 @app.route('/')
@@ -38,14 +54,45 @@ def register():
 
         cursor = db.cursor()
 
+        user_IP = request.remote_addr
+        cursor.execute("SELECT ip_address FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
+                           "AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND ip_address = %s " "GROUP BY ip_address " "HAVING COUNT(*) >= 5", 
+                           (user_IP,) )
+        result_IP = cursor.fetchone()
+        if result_IP:
+                cursor.execute("SELECT ip_address FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s", 
+                               (user_IP,))
+                result = cursor.fetchone()
+
+                if (result is None): 
+                    cursor.execute("INSERT INTO BlockedIPs (ip_address, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
+                                   (user_IP, "Repeated failed logins",  1, None, None))
+                    db.commit()
+
+        cursor.execute("SELECT * FROM BlockedIPs WHERE ip_address = %s AND is_active = 1", 
+                       (request.remote_addr,))
+        IP_is_blocked = cursor.fetchone()
+
+        if IP_is_blocked: 
+            cursor.execute(
+                    "INSERT INTO AccessLogs (user_id, action_type, status, ip_address) VALUES (%s, %s, %s, %s)" ,
+                    (None, 'REGISTER', 'BLOCKED', request.remote_addr)
+                )
+            db.commit()
+            return render_template("register.html", error = "Access denied. Please contact an administrator.")
+
         cursor.execute("SELECT * FROM Users WHERE username=%s", (username,))
         if cursor.fetchone():
-            return "Username already exists."
+             return render_template("register.html", error = "Username already exists")
+
+        # Generate password hash
+
+        hashed_password = generate_password_hash(password)
 
         # Insert into Users
         cursor.execute(
-            "INSERT INTO Users (username, password, role) VALUES (%s, %s, %s)",
-            (username, password, role)
+            "INSERT INTO Users (username, password_hash, role) VALUES (%s, %s, %s)",
+            (username, hashed_password, role)
         )
 
         user_id = cursor.lastrowid
@@ -64,8 +111,10 @@ def register():
             """, (user_id, first_name, last_name, phone, email))
 
         db.commit()
+        flash("Account created successfully. Please log in.", "success")
+        return redirect("/login")
 
-        return "Registration Successful!"
+    
 
 
 # Login Route
@@ -76,29 +125,117 @@ def login():
         return render_template('login_form.html')
 
     if request.method == 'POST':
+
         username = request.form['username']
         password = request.form['password']
 
         cursor = db.cursor(dictionary=True)
+
+        # Check if IP is blocked
+        cursor.execute("SELECT * FROM BlockedIPs WHERE ip_address = %s AND is_active = 1", 
+                       (request.remote_addr,))
+        IP_is_blocked = cursor.fetchone()
+
+        if IP_is_blocked: 
+            cursor.execute(
+                    "INSERT INTO AccessLogs (user_id, action_type, status, ip_address) VALUES (%s, %s, %s, %s)" ,
+                    (None, 'LOGIN', 'BLOCKED', request.remote_addr)
+                )
+            db.commit()
+            return render_template("login_form.html", error = "Access denied. Please contact an administrator.")
+        # Search for user by username
         cursor.execute(
-            "SELECT * FROM Users WHERE username=%s AND password=%s",
-            (username, password)
+            "SELECT * FROM Users WHERE username=%s",
+            (username,)
         )
         user = cursor.fetchone()
-
+        # If user lookup is successful, check if they are blocked before looking for password
         if user:
+            cursor.execute("SELECT * FROM BlockedUsers WHERE user_id = %s AND is_active = 1",
+                           (user['user_id'],))
+            result = cursor.fetchone()
+            if result:
+                cursor.execute(
+                    "INSERT INTO AccessLogs (user_id, action_type, status, ip_address) VALUES (%s, %s, %s, %s)" ,
+                    (user['user_id'], 'LOGIN', 'BLOCKED', request.remote_addr)
+                )
+                db.commit()
+                return render_template("login_form.html", error = "Access denied. Please contact an administrator.")
+        
+        # Non-blocked login path with hashed password
+        if user and check_password_hash(user['password_hash'], password):
             role = user['role']
             session['username'] = username
             session['user_id'] = user['user_id']
             session['role'] = role
+            cursor.execute(
+            "INSERT INTO AccessLogs (user_id, action_type, status, ip_address) VALUES (%s, %s, %s, %s)",
+            (user['user_id'], 'LOGIN', 'SUCCESS', request.remote_addr)
+            )
+            db.commit()
             if role == 'Admin':
                 return redirect('/admin')
             elif role == 'Doctor':
                 return redirect('/doctor')
             elif role == 'Patient':
                 return redirect('/patient')
+            
+        # Path if username is valid but password is not
+        if (user):
+            cursor.execute(
+            "INSERT INTO AccessLogs (user_id, action_type, status, ip_address) VALUES (%s, %s, %s, %s)",
+            (user['user_id'], 'LOGIN', 'FAILED', request.remote_addr)
+            )
+            db.commit()
 
-        return "Invalid Credentials"
+            user_id = user['user_id'] 
+            
+            # Check for blocking requirements
+            cursor.execute( "SELECT user_id FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
+                           "AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND user_id = %s " "GROUP BY user_id " "HAVING COUNT(*) >= 5", 
+                           (user_id,) ) 
+            result_user = cursor.fetchone()
+            
+            # If requirements met, check if user is not blocked already 
+            if result_user: 
+                cursor.execute("SELECT user_id FROM BlockedUsers WHERE is_active = 1 AND user_id = %s", (user_id,) )
+                result2 = cursor.fetchone()
+                # Only block if not admin
+                if (result2 is None and user['role'] != 'Admin'):
+                    cursor.execute("INSERT INTO BlockedUsers (user_id, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
+                                   (user_id, "Repeated failed logins",  1, None, None))
+                    db.commit()
+
+        # Incorrect username path   
+        else:
+            cursor.execute(
+            "INSERT INTO AccessLogs (user_id, action_type, status, ip_address) VALUES (%s, %s, %s, %s)",
+            (None, 'LOGIN', 'FAILED', request.remote_addr)
+            )
+            db.commit()
+
+        
+        user_IP = request.remote_addr
+        # Check if IP needs to be blocked
+        cursor.execute("SELECT ip_address FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
+                           "AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND ip_address = %s " "GROUP BY ip_address " "HAVING COUNT(*) >= 5", 
+                           (user_IP,) )
+        result_IP = cursor.fetchone()
+        # Check if IP is already blocked
+        if result_IP:
+                cursor.execute("SELECT ip_address FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s", 
+                               (user_IP,))
+                result3 = cursor.fetchone()
+        # If IP is not blocked and role is not Admin, auto block IP
+                if((user) and user['role'] == 'Admin'):
+                    return render_template("login_form.html", error = "Invalid Username/Password")
+                else:
+                    if (result3 is None): 
+                        cursor.execute("INSERT INTO BlockedIPs (ip_address, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
+                                   (user_IP, "Repeated failed logins",  1, None, None))
+                        db.commit()
+        return render_template("login_form.html", error = "Invalid Username/Password")                
+        
 
 
 # Dashboards
@@ -106,6 +243,11 @@ def login():
 def doctor():
 
     cursor = db.cursor(dictionary=True)
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Doctor':
+        return redirect('/login')
 
     cursor.execute("SELECT doctor_id FROM Doctors WHERE user_id = %s", (session['user_id'],))
     doctor_id = cursor.fetchone()['doctor_id']
@@ -185,10 +327,42 @@ def doctor():
         today_count=today_count,
         appointments=appointments
     )
-@app.route('/complete/<int:appointment_id>')
+@app.route('/complete/<int:appointment_id>', methods=['POST'])
 def complete(appointment_id):
 
-    cursor = db.cursor()
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Doctor':
+        return redirect('/login')
+
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute(
+    "SELECT doctor_id FROM Doctors WHERE user_id = %s",
+    (session['user_id'],)
+    )
+    result = cursor.fetchone()
+    if result is None:
+        return redirect("/doctor")
+    doctor_id = result['doctor_id']
+
+    cursor.execute(
+    "SELECT doctor_id FROM Appointments WHERE appointment_id = %s",
+    (appointment_id,)
+    )
+    appt = cursor.fetchone()
+
+    
+    if appt is None:
+        return redirect('/doctor')
+    
+    appointment_doctor_id = appt['doctor_id']
+
+    if doctor_id != appointment_doctor_id:
+        return redirect('/doctor')
+    
+
     cursor.execute("""
         UPDATE Appointments
         SET status = 'Completed'
@@ -199,10 +373,39 @@ def complete(appointment_id):
     return redirect('/doctor')
 
 
-@app.route('/cancel/<int:appointment_id>')
+@app.route('/cancel/<int:appointment_id>', methods=['POST'])
 def cancel(appointment_id):
 
-    cursor = db.cursor()
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Doctor':
+        return redirect('/login')
+    
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute(
+    "SELECT doctor_id FROM Doctors WHERE user_id = %s",
+    (session['user_id'],)
+    )
+    result = cursor.fetchone()
+    if result is None:
+        return redirect("/doctor")
+    doctor_id = result['doctor_id']
+
+    cursor.execute(
+    "SELECT doctor_id FROM Appointments WHERE appointment_id = %s",
+    (appointment_id,)
+    )
+    appt = cursor.fetchone()
+    if appt is None:
+        return redirect('/doctor')
+    
+    appointment_doctor_id = appt['doctor_id']
+
+    if doctor_id != appointment_doctor_id:
+        return redirect('/doctor')
+  
     cursor.execute("""
         UPDATE Appointments
         SET status = 'Cancelled'
@@ -214,7 +417,36 @@ def cancel(appointment_id):
 
 @app.route('/add_record/<int:appointment_id>', methods=['GET', 'POST'])
 def add_record(appointment_id):
+    if 'user_id' not in session:
+        return redirect('/login')
 
+    if session.get('role') != 'Doctor':
+        return redirect('/login')
+    
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT doctor_id FROM Doctors WHERE user_id = %s",
+        (session['user_id'],)
+            )
+    result = cursor.fetchone()
+    if result is None:
+        return redirect("/doctor")
+    doctor_id = result['doctor_id']
+
+    cursor.execute(
+        "SELECT doctor_id FROM Appointments WHERE appointment_id = %s",
+        (appointment_id,)
+        )
+    appt = cursor.fetchone()
+    if appt is None:
+        return redirect('/doctor')
+    appointment_doctor_id = appt['doctor_id']
+    if doctor_id != appointment_doctor_id:
+        return redirect('/doctor')
+    
+
+    
     if request.method == 'POST':
 
         diagnosis = request.form['diagnosis']
@@ -223,8 +455,7 @@ def add_record(appointment_id):
         weight = request.form['weight']
         height = request.form['height']
 
-        cursor = db.cursor()
-
+        
         # Get patient + doctor from appointment
         cursor.execute("""
             SELECT patient_id, doctor_id
@@ -233,8 +464,8 @@ def add_record(appointment_id):
         """, (appointment_id,))
         data = cursor.fetchone()
 
-        patient_id = data[0]
-        doctor_id = data[1]
+        patient_id = data["patient_id"]
+        doctor_id = data["doctor_id"]
 
         cursor.execute("""
             INSERT INTO MedicalRecords
@@ -254,6 +485,63 @@ def add_record(appointment_id):
 def admin():
 
     cursor = db.cursor(dictionary=True)
+
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Admin':
+        return redirect('/login')
+    
+    # Get all currently blocked users
+
+    cursor.execute("""
+                   SELECT u.username, b.reason, b.blocked_at, b.block_id
+                   FROM BlockedUsers b
+                   JOIN Users u ON b.user_id = u.user_id
+                   WHERE b.is_active = 1
+                    """)
+    blocked_users = cursor.fetchall()
+    
+    # Get all currently blocked IP addresses
+
+    cursor.execute("""
+                   SELECT ip_address, reason, blocked_at, block_id
+                   FROM BlockedIPs
+                   WHERE is_active = 1
+                    """)
+    blocked_IPs = cursor.fetchall()
+
+    # Get all suspicious users
+
+    cursor.execute("""
+                    SELECT u.username, u.user_id, l.ip_address, COUNT(*) AS failed_attempts, MAX(l.created_at) AS last_attempt
+                    FROM AccessLogs l
+                    JOIN Users u ON u.user_id = l.user_id
+                    LEFT JOIN BlockedUsers b ON b.user_id = l.user_id AND b.is_active = 1
+                    WHERE b.user_id IS NULL
+                        AND l.action_type = 'LOGIN'
+                        AND l.status = 'FAILED'
+                        AND l.created_at >= NOW() - INTERVAL 10 MINUTE
+                    GROUP BY l.user_id, u.username, l.ip_address
+                    HAVING COUNT(*) >= 3;
+                   """)
+    suspicious_users = cursor.fetchall()
+
+    # Get all suspicious IPs
+
+    cursor.execute("""
+                    SELECT l.ip_address, COUNT(*) AS failed_attempts, MAX(l.created_at) AS last_attempt
+                    FROM AccessLogs l
+                    LEFT JOIN BlockedIPs b ON b.ip_address = l.ip_address AND b.is_active = 1
+                    WHERE b.ip_address IS NULL 
+                        AND l.action_type = 'LOGIN'
+                        AND l.status = 'FAILED'
+                        AND l.created_at >= NOW() - INTERVAL 10 MINUTE
+                    GROUP BY l.ip_address
+                    HAVING COUNT(*) >= 3;
+                    """)
+    suspicious_IPs = cursor.fetchall()
+    print("Suspicious IPs:", suspicious_IPs)
 
     # Get all doctors
     cursor.execute("""
@@ -280,14 +568,123 @@ def admin():
         'admin_dashboard.html',
         doctors=doctors,
         patients=patients,
-        revenue=revenue
+        revenue=revenue,
+        blocked_users=blocked_users,
+        blocked_IPs=blocked_IPs,
+        suspicious_users=suspicious_users,
+        suspicious_IPs=suspicious_IPs
     )
+
+@app.route('/unblock_user/<int:block_id>', methods=['POST'])
+def unblock_user(block_id):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Admin':
+        return redirect('/login')
+    
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM BlockedUsers WHERE block_id = %s",
+                   (block_id,))
+    result = cursor.fetchone()
+
+    if (result and result["is_active"] == 1):
+        cursor.execute("UPDATE BlockedUsers SET is_active = 0 WHERE block_id = %s",
+        (block_id,))
+
+        cursor.execute("UPDATE Blockedusers SET unblocked_at = CURRENT_TIMESTAMP")
+        db.commit()
+
+    return redirect("/admin")
+
+@app.route('/unblock_IP/<int:block_id>', methods=['POST'])
+def unblock_IP(block_id):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Admin':
+        return redirect('/login')
+    
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM BlockedIPs WHERE block_id = %s",
+                   (block_id,))
+    result = cursor.fetchone()
+
+    if (result and result["is_active"] == 1):
+        cursor.execute("UPDATE BlockedIPs SET is_active = 0 WHERE block_id = %s",
+        (block_id,))
+
+        cursor.execute("UPDATE BlockedIPs SET unblocked_at = CURRENT_TIMESTAMP")
+        db.commit()
+
+    return redirect("/admin")
+
+@app.route('/block_user/<int:user_id>', methods=['POST'])
+def block_user(user_id):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Admin':
+        return redirect('/login')
+    
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM Users WHERE user_id = %s",
+                   (user_id,))
+    exists = cursor.fetchone()
+
+    if exists is None:
+        return redirect("/admin")
+
+    cursor.execute("SELECT * FROM BlockedUsers WHERE is_active = 1 AND user_id = %s",
+                   (user_id,))
+    is_blocked = cursor.fetchone()
+
+    if is_blocked:
+        return redirect("/admin")
+    
+    cursor.execute("INSERT INTO BlockedUsers (user_id, reason, is_active, blocked_at, blocked_by, unblocked_at) VALUES (%s, %s, %s, CURRENT_TIMESTAMP, %s, %s)",
+    (exists['user_id'], 'Suspicious activity', 1, session.get('user_id'), None))
+
+    db.commit()
+
+    return redirect("/admin")
+
+
+@app.route('/block_IP/<ip_address>', methods=['POST'])
+def block_IP(ip_address):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Admin':
+        return redirect('/login')
+    
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s",
+                   (ip_address,))
+    is_blocked = cursor.fetchone()
+
+    if is_blocked:
+        return redirect("/admin")
+    
+    cursor.execute("INSERT INTO BlockedIPs (ip_address, reason, is_active, blocked_at, blocked_by, unblocked_at) VALUES (%s, %s, %s, CURRENT_TIMESTAMP, %s, %s)",
+    (ip_address, 'Suspicious activity', 1, session.get('user_id'), None))
+
+    db.commit()
+
+    return redirect("/admin")
 
 
 @app.route('/patient')
 def patient():
 
     cursor = db.cursor(dictionary=True)
+
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Patient':
+        return redirect('/login')
 
     # Get patient_id from logged-in user
     cursor.execute(

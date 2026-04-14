@@ -152,10 +152,15 @@ overflow:hidden;
 
 <td>
 {% if a.status == 'Scheduled' %}
-<a href="/complete/{{ a.appointment_id }}" class="btn btn-sm btn-success">✔</a>
-<a href="/cancel/{{ a.appointment_id }}" class="btn btn-sm btn-danger">✖</a>
+<form method="POST" action="/complete/{{ a.appointment_id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Complete</button>
+</form>
+<form method="POST" action="/cancel/{{ a.appointment_id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Cancel</button>
+</form>
 {% endif %}
-
 <a href="/add_record/{{ a.appointment_id }}" class="btn btn-sm btn-primary">+ Record</a>
 </td>
 

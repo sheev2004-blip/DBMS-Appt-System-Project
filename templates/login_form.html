@@ -17,6 +17,22 @@ border-radius:15px;
 
 <body>
 
+{% if error %}
+<div class="alert alert-danger">
+    {{ error }}
+</div>
+{% endif %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
 <div class="container d-flex justify-content-center align-items-center vh-100">
 
 <div class="card shadow-lg p-4" style="width:400px">
@@ -24,6 +40,7 @@ border-radius:15px;
 <h3 class="text-center mb-3">SmartCare Login</h3>
 
 <form action="/login" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
 <div class="mb-3">
 <label>Username</label>

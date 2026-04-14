@@ -40,7 +40,7 @@
 
             <!-- Form -->
             <form method="POST">
-
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label class="form-label">Diagnosis</label>
                     <textarea name="diagnosis" class="form-control" rows="3" placeholder="Enter diagnosis..." required></textarea>

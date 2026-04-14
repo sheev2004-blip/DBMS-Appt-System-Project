@@ -1,4 +1,5 @@
  <!DOCTYPE html>
+
 <html>
 <head>
 <title>Admin Dashboard</title>
@@ -113,6 +114,147 @@ color:#4e73df;
 
 </div>
 
+<div class="card shadow mt-5 p-4" id = "blockedusers">
+<h5>Blocked Users ({{ blocked_users|length }})</h5>
+
+{% if blocked_users %}
+<table class="table table-hover">
+<thead class="table-primary">
+    <tr>
+        <th>Username</th>
+        <th>Reason</th>
+        <th>Blocked At</th>
+        <th>Action</th>
+    </tr>
+
+</thead>
+<tbody>
+{% for user in blocked_users %}
+    <tr>
+        <td>{{ user.username }}</td>
+        <td>{{ user.reason }}</td>
+        <td>{{ user.blocked_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+        <td><form action="/unblock_user/{{ user.block_id }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-warning">Unblock</button>
+        </form></td>
+    </tr>
+    {% endfor %}
+</tbody>
+</table>
+{% else %}
+<p class="text-muted">No blocked users</p>
+{% endif %}
+
+
+</div>
+
+<div class="card shadow mt-5 p-4" id = "blockedips">
+<h5>Blocked IP Addresses ({{ blocked_IPs|length }})</h5>
+
+{% if blocked_IPs %}
+<table class="table table-hover">
+<thead class="table-primary">
+    <tr>
+        <th>IP Address</th>
+        <th>Reason</th>
+        <th>Blocked At</th>
+        <th>Action</th>
+    </tr>
+
+</thead>
+<tbody>
+{% for IP in blocked_IPs %}
+    <tr>
+        <td>{{ IP.ip_address }}</td>
+        <td>{{ IP.reason }}</td>
+        <td>{{ IP.blocked_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+        <td><form action="/unblock_IP/{{ IP.block_id }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-warning">Unblock</button>
+        </form></td>
+    </tr>
+    {% endfor %}
+</tbody>  
+</table>
+{% else %}
+<p class="text-muted">No blocked IP addresses</p>
+{% endif %}
+
+
+</div>
+
+<div class="card shadow mt-5 p-4" id = "suspicioususers">
+<h5>Suspicious Users ({{ suspicious_users|length }})</h5>
+
+{% if suspicious_users %}
+<table class="table table-hover">
+<thead class="table-primary">
+    <tr>
+        <th>Username</th>
+        <th>IP Address</th>
+        <th>Failed Attempts</th>
+        <th>Last Attempt</th>
+        <th>Action</th>
+    </tr>
+
+</thead>
+<tbody>
+{% for user in suspicious_users %}
+    <tr>
+        <td>{{ user.username }}</td>
+        <td>{{ user.ip_address }}</td>
+        <td>{{ user.failed_attempts }}</td>
+        <td>{{ user.last_attempt.strftime('%b %d, %Y %I:%M %p') }}</td>
+        <td><form action="/block_user/{{ user.user_id }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-danger">Block</button>
+        </form></td>
+    </tr>
+    {% endfor %}
+</tbody>
+</table>
+{% else %}
+<p class="text-muted">No suspicious users</p>
+{% endif %}
+
+
+</div>
+
+<div class="card shadow mt-5 p-4" id = "suspiciousips">
+
+<h5>Suspicious IP Addresses ({{ suspicious_IPs|length }})</h5>
+
+{% if suspicious_IPs %}
+<table class="table table-hover">
+<thead class="table-primary">
+    <tr>
+        <th>IP Address</th>
+        <th>Failed Attempts</th>
+        <th>Last Attempt</th>
+        <th>Action</th>
+    </tr>
+
+</thead>
+<tbody>
+{% for ip in suspicious_IPs %}
+    <tr>
+        <td>{{ ip.ip_address }}</td>
+        <td>{{ ip.failed_attempts }}</td>
+        <td>{{ ip.last_attempt.strftime('%b %d, %Y %I:%M %p') }}</td>
+        <td><form action="/block_IP/{{ ip.ip_address }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-danger">Block</button>
+        </form></td>
+    </tr>
+    {% endfor %}
+</tbody>
+</table>
+{% else %}
+<p class="text-muted">No suspicious IP addresses</p>
+{% endif %}
+
+</div>
 
 <!-- Doctors Table -->
 <div class="card shadow mt-5 p-4" id="doctors">
@@ -169,8 +311,8 @@ color:#4e73df;
 <tr>
 <th>ID</th>
 <th>Name</th>
-<th>Email</th>
 <th>Phone</th>
+<th>Email</th>
 </tr>
 
 </thead>
@@ -183,8 +325,8 @@ color:#4e73df;
 
 <td>{{ p.patient_id }}</td>
 <td>{{ p.first_name }} {{ p.last_name }}</td>
-<td>{{ p.email }}</td>
 <td>{{ p.phone }}</td>
+<td>{{ p.email }}</td>
 
 </tr>
 

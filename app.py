@@ -55,22 +55,26 @@ def register():
         cursor = db.cursor()
 
         user_IP = request.remote_addr
-        cursor.execute("SELECT ip_address FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
-                           "AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND ip_address = %s " "GROUP BY ip_address " "HAVING COUNT(*) >= 5", 
-                           (user_IP,) )
-        result_IP = cursor.fetchone()
-        if result_IP:
-                cursor.execute("SELECT ip_address FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s", 
-                               (user_IP,))
-                result = cursor.fetchone()
+        #cursor.execute("SELECT ip_address FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
+                           #"AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND ip_address = %s " "GROUP BY ip_address " "HAVING COUNT(*) >= 5", 
+                          # (user_IP,) )
+        #result_IP = cursor.fetchone()
+        #if result_IP:
+                #cursor.execute("SELECT ip_address FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s", 
+                              #(user_IP,))
+                #result = cursor.fetchone()
 
-                if (result is None): 
-                    cursor.execute("INSERT INTO BlockedIPs (ip_address, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
-                                   (user_IP, "Repeated failed logins",  1, None, None))
-                    db.commit()
+                #if (result is None): 
+                    #cursor.execute("INSERT INTO BlockedIPs (ip_address, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
+                                   #(user_IP, "Repeated failed logins",  1, None, None))
+                    #db.commit()
 
-        cursor.execute("SELECT * FROM BlockedIPs WHERE ip_address = %s AND is_active = 1", 
-                       (request.remote_addr,))
+
+        # remove this after demo
+        cursor.execute(
+            "SELECT ip_address FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s",
+            (user_IP,))
+
         IP_is_blocked = cursor.fetchone()
 
         if IP_is_blocked: 
@@ -188,23 +192,23 @@ def login():
             )
             db.commit()
 
-            user_id = user['user_id'] 
+            #user_id = user['user_id'] 
             
             # Check for blocking requirements
-            cursor.execute( "SELECT user_id FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
-                           "AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND user_id = %s " "GROUP BY user_id " "HAVING COUNT(*) >= 5", 
-                           (user_id,) ) 
-            result_user = cursor.fetchone()
+            #cursor.execute( "SELECT user_id FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
+                           #"AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND user_id = %s " "GROUP BY user_id " "HAVING COUNT(*) >= 5", 
+                           #(user_id,) ) 
+            #result_user = cursor.fetchone()
             
             # If requirements met, check if user is not blocked already 
-            if result_user: 
-                cursor.execute("SELECT user_id FROM BlockedUsers WHERE is_active = 1 AND user_id = %s", (user_id,) )
-                result2 = cursor.fetchone()
+            #if result_user: 
+                #cursor.execute("SELECT user_id FROM BlockedUsers WHERE is_active = 1 AND user_id = %s", (user_id,) )
+                #result2 = cursor.fetchone()
                 # Only block if not admin
-                if (result2 is None and user['role'] != 'Admin'):
-                    cursor.execute("INSERT INTO BlockedUsers (user_id, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
-                                   (user_id, "Repeated failed logins",  1, None, None))
-                    db.commit()
+                #if (result2 is None and user['role'] != 'Admin'):
+                    #cursor.execute("INSERT INTO BlockedUsers (user_id, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
+                                   #(user_id, "Repeated failed logins",  1, None, None))
+                    #db.commit()
 
         # Incorrect username path   
         else:
@@ -215,25 +219,26 @@ def login():
             db.commit()
 
         
-        user_IP = request.remote_addr
+        #user_IP = request.remote_addr
         # Check if IP needs to be blocked
-        cursor.execute("SELECT ip_address FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
-                           "AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND ip_address = %s " "GROUP BY ip_address " "HAVING COUNT(*) >= 5", 
-                           (user_IP,) )
-        result_IP = cursor.fetchone()
+        #cursor.execute("SELECT ip_address FROM AccessLogs " "WHERE action_type = 'LOGIN' " "AND status = 'FAILED' " 
+                           #"AND created_at >= NOW() - INTERVAL 10 MINUTE " "AND ip_address = %s " "GROUP BY ip_address " "HAVING COUNT(*) >= 5", 
+                           #(user_IP,) )
+        #result_IP = cursor.fetchone()
         # Check if IP is already blocked
-        if result_IP:
-                cursor.execute("SELECT ip_address FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s", 
-                               (user_IP,))
-                result3 = cursor.fetchone()
+        #if result_IP:
+                #cursor.execute("SELECT ip_address FROM BlockedIPs WHERE is_active = 1 AND ip_address = %s", 
+                               #(user_IP,))
+                #result3 = cursor.fetchone()
         # If IP is not blocked and role is not Admin, auto block IP
-                if((user) and user['role'] == 'Admin'):
-                    return render_template("login_form.html", error = "Invalid Username/Password")
-                else:
-                    if (result3 is None): 
-                        cursor.execute("INSERT INTO BlockedIPs (ip_address, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
-                                   (user_IP, "Repeated failed logins",  1, None, None))
-                        db.commit()
+                #if((user) and user['role'] == 'Admin'):
+                    #return render_template("login_form.html", error = "Invalid Username/Password")
+                #else:
+                    #if (result3 is None): 
+                        #cursor.execute("INSERT INTO BlockedIPs (ip_address, reason, is_active, blocked_by, notes) VALUES (%s, %s, %s, %s, %s)",
+                                   #(user_IP, "Repeated failed logins",  1, None, None))
+                        #db.commit()
+            
         return render_template("login_form.html", error = "Invalid Username/Password")                
         
 
@@ -368,13 +373,33 @@ def complete(appointment_id):
         SET status = 'Completed'
         WHERE appointment_id = %s
     """, (appointment_id,))
-    db.commit()
 
-    cursor.execute("""SELECT patient_id
-FROM Appointments
-WHERE appointment_id = %s""",
+    cursor.execute("""SELECT a.patient_id, d.specialization
+FROM Appointments a
+JOIN Doctors d ON a.doctor_id = d.doctor_id
+WHERE a.appointment_id = %s""",
 (appointment_id,))
     appt_info = cursor.fetchone()
+
+    specialization = appt_info['specialization']
+
+    if specialization == 'Cardiology':
+        consultation_fee = 150
+    elif specialization == 'Dermatology':
+        consultation_fee = 120
+    elif specialization == 'Pediatrics':
+        consultation_fee = 110
+    elif specialization == 'Gynecology':
+        consultation_fee = 130
+    elif specialization == 'Orthopedics':
+        consultation_fee = 140
+    elif specialization == 'Neurology':
+        consultation_fee = 160
+    else:
+        consultation_fee = 100
+
+    medicine_charges = 0
+    lab_charges = 0
 
     cursor.execute("""SELECT bill_id
 FROM Billing
@@ -388,7 +413,7 @@ WHERE appointment_id = %s""",(appointment_id,))
     INSERT INTO Billing
     (patient_id, appointment_id, consultation_fee, medicine_charges, lab_charges, payment_status)
     VALUES (%s, %s, %s, %s, %s, %s)
-""", (appt_info['patient_id'], appointment_id, 100, 100, 100, 'Unpaid'))
+""", (appt_info['patient_id'], appointment_id, consultation_fee, medicine_charges, lab_charges, 'Pending'))
 
     db.commit()
     return redirect('/doctor')
@@ -549,7 +574,7 @@ def admin():
                     WHERE b.user_id IS NULL
                         AND l.action_type = 'LOGIN'
                         AND l.status = 'FAILED'
-                        AND l.created_at >= NOW() - INTERVAL 10 MINUTE
+                        AND l.created_at >= NOW() - INTERVAL 1 DAY
                     GROUP BY l.user_id, u.username, l.ip_address
                     HAVING COUNT(*) >= 3;
                    """)
@@ -564,7 +589,7 @@ def admin():
                     WHERE b.ip_address IS NULL 
                         AND l.action_type = 'LOGIN'
                         AND l.status = 'FAILED'
-                        AND l.created_at >= NOW() - INTERVAL 10 MINUTE
+                        AND l.created_at >= NOW() - INTERVAL 1 DAY
                     GROUP BY l.ip_address
                     HAVING COUNT(*) >= 3;
                     """)
@@ -892,7 +917,7 @@ def medical_records():
 
     patient_id = result['patient_id']
 
-    cursor.execute("""SELECT CONCAT(p.first_name, ' ', p.last_name) AS name,
+    cursor.execute("""SELECT CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
        m.diagnosis,
        m.treatment_notes,
        m.blood_pressure,
@@ -900,6 +925,7 @@ def medical_records():
        m.height
 FROM MedicalRecords m
 JOIN Patients p ON m.patient_id = p.patient_id
+JOIN Doctors d ON m.doctor_id = d.doctor_id
 WHERE m.patient_id = %s
 ORDER BY m.appointment_id DESC""",
                    (patient_id,))

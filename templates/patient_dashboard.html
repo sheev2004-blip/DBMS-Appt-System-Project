@@ -104,6 +104,106 @@
 
                 </div>
 
+                <!-- Edit Patient Info -->
+                <div class="card shadow mt-4 p-4">
+                    <h5>Patient Information</h5>
+
+                    <p class="mb-2">
+                        <span class="badge bg-secondary me-2">Name: {{ name }}</span>
+                        <span class="badge bg-primary">MRN: {{ mrn }}</span>
+                    </p>
+
+                    <p class="mb-1"><strong>Date of Birth:</strong> {{ dob if dob else '—' }}</p>
+                    <p class="mb-1"><strong>Sex:</strong> {{ sex if sex else '—' }}</p>
+                    <p class="mb-1"><strong>Address:</strong> {{ address if address else '—' }}</p>
+                    <p class="mb-1"><strong>Emergency Contact:</strong>
+                    {% if emergency_contact_name or emergency_contact_phone %}
+                        {{ emergency_contact_name if emergency_contact_name else '—' }}
+                        {% if emergency_contact_phone %}({{ emergency_contact_phone }}){% endif %}
+                    {% else %}
+        —
+                    {% endif %}
+                    </p>
+
+                    <p class="mb-0"><strong>Allergies:</strong> {{ allergies if allergies else '—' }}</p>
+                    <p class="mb-1"><strong>Smoking Status:</strong> {{ smoking_status if smoking_status else '—' }}</p>
+                    <p class="mb-0"><strong>Alcohol Use:</strong> {{ alcohol_use if alcohol_use else '—' }}</p>
+
+                    <button type="button" class="btn btn-book text-white mt-3" onclick="toggleEditProfile()">
+                        Edit Profile
+                    </button>
+                </div>
+
+                <div id="editProfileForm" class="card shadow mt-3 p-4" style="display:none;">
+    <h5>Edit Patient Information</h5>
+
+    <form method="POST" action="/update_patient">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mb-3">
+            <label class="form-label">Date of Birth</label>
+            <input type="date" name="date_of_birth" class="form-control" value="{{ dob }}">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Sex</label>
+            <select name="sex" class="form-select">
+                <option value="">Select</option>
+                <option value="Male" {% if sex == 'Male' %}selected{% endif %}>Male</option>
+                <option value="Female" {% if sex == 'Female' %}selected{% endif %}>Female</option>
+                <option value="Other" {% if sex == 'Other' %}selected{% endif %}>Other</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Address</label>
+            <input type="text" name="address" class="form-control" value="{{ address if address else '' }}">
+        </div>
+
+        <div class="mb-3">
+        <label class="form-label">Emergency Contact Name</label>
+        <input type="text" name="emergency_contact_name" class="form-control"
+           value="{{ emergency_contact_name if emergency_contact_name else '' }}">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Emergency Contact Phone</label>
+            <input type="text" name="emergency_contact_phone" class="form-control"
+                value="{{ emergency_contact_phone if emergency_contact_phone else '' }}">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Allergies</label>
+            <input type="text" name="allergies" class="form-control"
+                value="{{ allergies if allergies else '' }}"
+                placeholder="e.g. Penicillin, Peanuts, None">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Smoking Status</label>
+            <select name="smoking_status" class="form-select">
+                <option value="">Select</option>
+                <option value="Never" {% if smoking_status == 'Never' %}selected{% endif %}>Never</option>
+                <option value="Former" {% if smoking_status == 'Former' %}selected{% endif %}>Former</option>
+                <option value="Current" {% if smoking_status == 'Current' %}selected{% endif %}>Current</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Alcohol Use</label>
+            <select name="alcohol_use" class="form-select">
+                <option value="">Select</option>
+                <option value="None" {% if alcohol_use == 'None' %}selected{% endif %}>None</option>
+                <option value="Occasional" {% if alcohol_use == 'Occasional' %}selected{% endif %}>Occasional</option>
+                <option value="Moderate" {% if alcohol_use == 'Moderate' %}selected{% endif %}>Moderate</option>
+                <option value="Frequent" {% if alcohol_use == 'Frequent' %}selected{% endif %}>Frequent</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-book text-white">Save Changes</button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="toggleEditProfile()">Cancel</button>
+    </form>
+</div>
                 <!-- Quick Action -->
                 <div class="card shadow mt-4 p-4 text-center">
                     <h5>Quick Action</h5>
@@ -122,6 +222,7 @@
                                <th>Date</th>
                                <th>Time</th>
                                <th>Status</th>
+                               <th>Reason</th>
                                <th>Cancel</th>
                             </tr>
                         </thead>
@@ -140,6 +241,7 @@
                                         <span class="badge bg-warning text-dark">Scheduled</span>
                                     {% endif %}
                                 </td>
+                                <td>{{ a.reason_for_visit if a.reason_for_visit else '—' }}</td>
                                 <td>
     {% if a.status == 'Scheduled' %}
         <form method="POST" action="/cancel_patient/{{ a.appointment_id }}">
@@ -199,6 +301,11 @@
 
     </div>
 </div>
-
+<script>
+function toggleEditProfile() {
+    const form = document.getElementById("editProfileForm");
+    form.style.display = form.style.display === "none" ? "block" : "none";
+}
+</script>
 </body>
 </html>

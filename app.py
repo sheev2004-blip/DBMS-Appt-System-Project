@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 import os
 import secrets
+from datetime import datetime, time
 
 app = Flask(__name__)
 
@@ -107,7 +108,15 @@ def register():
                 INSERT INTO Patients (user_id, first_name, last_name, email, phone)
                 VALUES (%s, %s, %s, %s, %s)
             """, (user_id, first_name, last_name, email, phone))
+            
+            patient_id = cursor.lastrowid
+            mrn = f"MRN-{patient_id:05d}"
 
+            cursor.execute("""
+                UPDATE Patients
+                SET mrn = %s
+                WHERE patient_id = %s
+                """, (mrn, patient_id))
         elif role == 'Doctor':
             cursor.execute("""
                 INSERT INTO Doctors (user_id, first_name, last_name, specialization, phone, email)
@@ -322,6 +331,21 @@ def doctor():
     """, (doctor_id,))
     appointments = cursor.fetchall()
 
+    # My Patients List
+
+    cursor.execute("""
+        SELECT p.patient_id, 
+                   CONCAT(p.first_name, ' ', p.last_name) AS patient_name, 
+                   p.mrn,
+                   MAX(a.appointment_date) AS last_visit
+                   FROM Appointments a
+                   JOIN Patients p ON a.patient_id = p.patient_id
+                   WHERE a.doctor_id = %s
+                   GROUP BY p.patient_id, p.first_name, p.last_name, p.mrn
+                   ORDER BY last_visit DESC""",
+                   (doctor_id,))
+    my_patients = cursor.fetchall()
+
     return render_template(
         'doctor_dashboard.html',
         doctor=doctor_info,
@@ -330,7 +354,8 @@ def doctor():
         scheduled=scheduled,
         patients=patients,
         today_count=today_count,
-        appointments=appointments
+        appointments=appointments,
+        my_patients=my_patients
     )
 @app.route('/complete/<int:appointment_id>', methods=['POST'])
 def complete(appointment_id):
@@ -500,6 +525,14 @@ def add_record(appointment_id):
         blood_pressure = request.form['blood_pressure']
         weight = request.form['weight']
         height = request.form['height']
+        medicine_name = request.form['medicine_name']
+        dosage = request.form['dosage']
+        frequency = request.form['frequency']
+        duration = request.form['duration']
+
+
+        if not frequency.strip():
+            frequency = ''
 
         if weight == '':
             weight = None
@@ -525,12 +558,46 @@ def add_record(appointment_id):
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
         """, (patient_id, doctor_id, appointment_id,
               diagnosis, treatment, blood_pressure, weight, height))
+        
+        record_id = cursor.lastrowid
+        if medicine_name.strip() != '':
+            cursor.execute("""
+            INSERT INTO Prescriptions (record_id, medicine_name, dosage, frequency, duration)
+            VALUES (%s, %s, %s, %s, %s)
+            """, (record_id, medicine_name, dosage, frequency, duration))
 
         db.commit()
 
         return redirect('/doctor')
+    cursor.execute("""SELECT
+    CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+    p.mrn,
+    p.date_of_birth,
+    p.sex,
+    p.allergies,
+    a.reason_for_visit,
+    a.appointment_date,
+    a.appointment_time
+FROM Appointments a
+JOIN Patients p ON a.patient_id = p.patient_id
+WHERE a.appointment_id = %s""",
+(appointment_id,))
+    
+    patient_context = cursor.fetchone()
+    appointment_time_td = patient_context['appointment_time']
 
-    return render_template('add_record.html', appointment_id=appointment_id)
+    if appointment_time_td is not None:
+        total_seconds = appointment_time_td.seconds
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+
+        display_time = datetime.strptime(f"{hours:02d}:{minutes:02d}", "%H:%M").strftime("%I:%M %p")
+    else:
+        display_time = None
+
+    patient_context['display_time'] = display_time
+
+    return render_template('add_record.html', appointment_id=appointment_id, patient_context=patient_context)
 
 
 
@@ -598,10 +665,10 @@ def admin():
 
     # Get all doctors
     cursor.execute("""
-        SELECT doctor_id, first_name, last_name, specialization, phone, email
+        SELECT doctor_id, first_name, last_name, specialization, phone, email, available_from, available_to
         FROM Doctors
     """)
-    doctors = cursor.fetchall()
+    doctor = cursor.fetchall()
 
     # Get all patients
     cursor.execute("""
@@ -619,7 +686,7 @@ def admin():
 
     return render_template(
         'admin_dashboard.html',
-        doctors=doctors,
+        doctor=doctor,
         patients=patients,
         revenue=revenue,
         blocked_users=blocked_users,
@@ -786,13 +853,43 @@ ORDER BY appointment_id DESC""",
     """, (patient_id,))
     appointments = cursor.fetchall()
 
+
+    #Get all patient info
+
+    cursor.execute("""SELECT CONCAT(first_name, ' ', last_name) AS patient_name, mrn, date_of_birth, sex, address, smoking_status, alcohol_use, emergency_contact_name,
+                   emergency_contact_phone, allergies FROM Patients WHERE patient_id = %s""",
+                   (patient_id,))
+    patient_info = cursor.fetchone()
+
+    if patient_info is None:
+        return redirect('/patient')  # or /patient, whichever fits your flow
+
+    mrn = patient_info['mrn']
+    name = patient_info['patient_name']
+    dob = patient_info['date_of_birth']
+    sex = patient_info['sex']
+    address = patient_info['address']
+    smoking_status = patient_info['smoking_status']
+    alcohol_use = patient_info['alcohol_use']
+    emergency_contact_name = patient_info['emergency_contact_name']
+    emergency_contact_phone = patient_info['emergency_contact_phone']
+
     return render_template(
         'patient_dashboard.html',
         total=total,
         completed=completed,
         upcoming=upcoming,
         appointments=appointments,
-        billing_records=billing_records
+        billing_records=billing_records,
+        mrn=mrn,
+        name=name,
+        dob=dob,
+        sex=sex,
+        address=address,
+        smoking_status=smoking_status,
+        alcohol_use=alcohol_use,
+        emergency_contact_name=emergency_contact_name,
+        emergency_contact_phone=emergency_contact_phone
     )
 
 @app.route('/book_appointment', methods=['GET', 'POST'])
@@ -820,8 +917,55 @@ def book_appointment():
         cursor = db.cursor(dictionary=True)
 
         doctor_id = request.form['doctor_id']
-        date = request.form['appointment_date']
-        time = request.form['appointment_time']
+        appt_date = request.form['appointment_date']
+        appt_time = request.form['appointment_time']
+        reason_for_visit = request.form.get('reason_for_visit', '').strip()
+
+
+        cursor.execute("SELECT * FROM Doctors")
+        doctors = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT doctor_id, available_from, available_to
+            FROM Doctors
+            WHERE doctor_id = %s
+        """, (doctor_id,))
+        doctor = cursor.fetchone()
+
+        selected_date = datetime.strptime(appt_date, "%Y-%m-%d").date()
+        today = datetime.today().date()
+
+        if selected_date < today:
+            return render_template('book_appt.html', doctors=doctors, error="Cannot book an appointment in the past.")
+        
+        selected_time = datetime.strptime(appt_time, "%H:%M").time()
+        current_time = datetime.now().time()
+
+        if selected_date == today and selected_time <= current_time:
+            return render_template('book_appt.html', doctors=doctors, error="Cannot book an appointment earlier than the current time.")
+        
+        if selected_time.minute not in (0, 30):
+            return render_template('book_appt.html', doctors=doctors, error="Appointments must be booked in 30-minute intervals.")
+        
+        available_from_td = doctor['available_from']
+        available_to_td = doctor['available_to']
+
+        available_from = time(
+            hour=available_from_td.seconds // 3600,
+            minute=(available_from_td.seconds % 3600) // 60
+        )
+
+        available_to = time(
+            hour=available_to_td.seconds // 3600,
+            minute=(available_to_td.seconds % 3600) // 60
+        )
+
+        if available_from and available_to:
+            if selected_time < available_from or selected_time >= available_to:
+                return render_template('book_appt.html', doctors=doctors, error="Selected time is outside this doctor's availability.")
+            
+        if selected_date.weekday() in (5, 6):
+            return render_template('book_appt.html', doctors=doctors, error="Appointments cannot be booked on weekends.")
 
         cursor.execute(
         "SELECT patient_id FROM Patients WHERE user_id = %s",
@@ -857,9 +1001,9 @@ def book_appointment():
         
         cursor.execute("""
         INSERT INTO Appointments
-        (patient_id, doctor_id, appointment_date, appointment_time, status)
-        VALUES (%s, %s, %s, %s, %s)
-        """, (patient_id, doctor_id, date, time, 'Scheduled'))
+        (patient_id, doctor_id, appointment_date, appointment_time, status, reason_for_visit)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """, (patient_id, doctor_id, date, time, 'Scheduled', reason_for_visit))
         db.commit()
 
         return redirect('/patient')
@@ -898,6 +1042,51 @@ def cancel_patient(appointment_id):
 
     return redirect("/patient")
 
+@app.route('/update_patient', methods=['POST'])
+def update_patient():
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Patient':
+        return redirect('/login')
+
+    cursor = db.cursor()
+
+    date_of_birth = request.form['date_of_birth']
+    sex = request.form['sex']
+    address = request.form['address']
+    smoking_status = request.form['smoking_status']
+    alcohol_use = request.form['alcohol_use']
+    emergency_contact_name = request.form['emergency_contact_name']
+    emergency_contact_phone = request.form['emergency_contact_phone']
+    allergies = request.form['allergies']
+
+    cursor.execute("""
+        UPDATE Patients
+        SET date_of_birth = %s,
+            sex = %s,
+            address = %s,
+            smoking_status = %s,
+            alcohol_use = %s,
+            emergency_contact_name = %s,
+            emergency_contact_phone = %s,
+            allergies = %s
+        WHERE user_id = %s
+    """, (
+        date_of_birth if date_of_birth else None,
+        sex if sex else None,
+        address if address else None,
+        smoking_status if smoking_status else None,
+        alcohol_use if alcohol_use else None,
+        emergency_contact_name if emergency_contact_name else None,
+        emergency_contact_phone if emergency_contact_phone else None,
+        allergies if allergies else None,
+        session['user_id']
+    ))
+
+    db.commit()
+    return redirect('/patient')
+
 @app.route('/medical_records')
 def medical_records():
     if 'user_id' not in session:
@@ -908,7 +1097,9 @@ def medical_records():
     
     cursor = db.cursor(dictionary=True)
     cursor.execute(
-        "SELECT patient_id FROM Patients WHERE user_id = %s",
+        """SELECT patient_id, first_name, last_name, mrn
+FROM Patients
+WHERE user_id = %s""",
         (session['user_id'],)
         )
     result = cursor.fetchone()
@@ -916,23 +1107,80 @@ def medical_records():
         return redirect('/patient')
 
     patient_id = result['patient_id']
+    name = f"{result['first_name']} {result['last_name']}"
+    mrn = result['mrn']
 
-    cursor.execute("""SELECT CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
-       m.diagnosis,
-       m.treatment_notes,
-       m.blood_pressure,
-       m.weight,
-       m.height
+    cursor.execute("""SELECT
+    CONCAT(d.first_name, ' ', d.last_name) AS doctor_name,
+    a.appointment_date,
+    a.reason_for_visit,
+    m.diagnosis,
+    m.treatment_notes,
+    m.blood_pressure,
+    m.weight,
+    m.height,
+    p.medicine_name,
+    p.dosage,
+    p.frequency,
+    p.duration
 FROM MedicalRecords m
-JOIN Patients p ON m.patient_id = p.patient_id
 JOIN Doctors d ON m.doctor_id = d.doctor_id
+LEFT JOIN Prescriptions p ON m.record_id = p.record_id
+JOIN Appointments a ON m.appointment_id = a.appointment_id
 WHERE m.patient_id = %s
-ORDER BY m.appointment_id DESC""",
+ORDER BY a.appointment_date DESC""",
                    (patient_id,))
     records = cursor.fetchall()
 
     return render_template('medical_records.html',
-                           records=records)
+                           records=records,
+                           mrn=mrn,
+                           name=name,
+
+                           )
+
+@app.route('/edit_doctor/<int:doctor_id>', methods=['GET', 'POST'])
+def edit_doctor(doctor_id):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    if session.get('role') != 'Admin':
+        return redirect('/login')
+
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT doctor_id, first_name, last_name, specialization, available_from, available_to
+        FROM Doctors
+        WHERE doctor_id = %s
+    """, (doctor_id,))
+    doctor = cursor.fetchone()
+
+    if doctor is None:
+        return redirect('/admin')
+
+    if request.method == 'GET':
+        return render_template('edit_doctor.html', doctor=doctor)
+
+    if request.method == 'POST':
+        available_from = request.form['available_from']
+        available_to = request.form['available_to']
+
+        if not available_from or not available_to:
+            return render_template('edit_doctor.html', doctor=doctor, error="Both times are required")
+
+        if available_from >= available_to:
+            return render_template('edit_doctor.html', doctor=doctor, error="Available from must be earlier than available to")
+
+        cursor.execute("""
+            UPDATE Doctors
+            SET available_from = %s,
+                available_to = %s
+            WHERE doctor_id = %s
+        """, (available_from, available_to, doctor_id))
+        db.commit()
+
+        return redirect('/admin')
 
 # Logout Route (ADD HERE)
 @app.route('/logout')
@@ -945,4 +1193,7 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 
+
+       
+    
 

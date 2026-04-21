@@ -10,10 +10,10 @@ CREATE TABLE Users (
 
 CREATE TABLE Patients (
     patient_id INT PRIMARY KEY AUTO_INCREMENT,
+    MRN varchar(20) UNIQUE NOT NULL,
     user_id INT,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    gender VARCHAR(10),
     date_of_birth DATE,
     phone VARCHAR(15),
     email VARCHAR(100),
@@ -137,3 +137,18 @@ CREATE TABLE BlockedIPs(
     
     FOREIGN KEY (blocked_by) REFERENCES Users(user_id)
 );
+
+ALTER TABLE Patients
+MODIFY mrn VARCHAR(20) NULL UNIQUE;
+
+ALTER TABLE Patients
+ADD COLUMN sex VARCHAR(20),
+ADD COLUMN address VARCHAR(255),
+ADD COLUMN emergency_contact_name VARCHAR(100),
+ADD COLUMN emergency_contact_phone VARCHAR(20),
+ADD COLUMN allergies VARCHAR(255),
+ADD COLUMN smoking_status VARCHAR(20),
+ADD COLUMN alcohol_use VARCHAR(20);
+
+ALTER TABLE Patients
+DROP COLUMN gender;

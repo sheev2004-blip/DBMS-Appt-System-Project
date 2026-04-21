@@ -38,6 +38,21 @@
                 <p class="text-muted">Enter patient health details and diagnosis</p>
             </div>
 
+            <div class="card shadow mt-4 p-4">
+    <h5>Patient Information</h5>
+
+    <p class="mb-1"><strong>Name:</strong> {{ patient_context.patient_name }}</p>
+    <p class="mb-1"><strong>MRN:</strong> {{ patient_context.mrn if patient_context.mrn else '—' }}</p>
+    <p class="mb-1"><strong>Date of Birth:</strong> {{ patient_context.date_of_birth if patient_context.date_of_birth else '—' }}</p>
+    <p class="mb-1"><strong>Sex:</strong> {{ patient_context.sex if patient_context.sex else '—' }}</p>
+    <p class="mb-1"><strong>Allergies:</strong> {{ patient_context.allergies if patient_context.allergies else '—' }}</p>
+    <p class="mb-1"><strong>Reason for Visit:</strong> {{ patient_context.reason_for_visit if patient_context.reason_for_visit else '—' }}</p>
+    <p class="mb-0">
+        <strong>Appointment:</strong>
+       {{ patient_context.appointment_date.strftime('%b %d, %Y') }} at {{ patient_context.display_time if patient_context.display_time else '—' }}
+    </p>
+</div>
+
             <!-- Form -->
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -66,6 +81,30 @@
                         <label class="form-label">Height (cm)</label>
                         <input type="number" step="0.01" name="height" class="form-control" placeholder="170">
                     </div>
+
+                    <h5 class="mt-4">Prescription (Optional)</h5>
+
+<div class="mb-3">
+    <label class="form-label">Medicine Name</label>
+    <input type="text" name="medicine_name" class="form-control">
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Dosage</label>
+    <input type="text" name="dosage" class="form-control" placeholder="e.g. 500 mg">
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Frequency</label>
+    <input type="text" name="frequency" class="form-control" placeholder="e.g. 2x daily">
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Duration</label>
+    <input type="text" name="duration" class="form-control" placeholder="e.g. 7 days">
+</div>
+
+
                 </div>
 
                 <!-- Buttons -->

@@ -132,13 +132,16 @@ color:#4e73df;
 <th>Specialization</th>
 <th>Phone</th>
 <th>Email</th>
+<th>Available From</th>
+<th>Available To</th>
+<th>Action</th>
 </tr>
 
 </thead>
 
 <tbody>
 
-{% for d in doctors %}
+{% for d in doctor %}
 
 <tr>
 
@@ -147,6 +150,13 @@ color:#4e73df;
 <td>{{ d.specialization }}</td>
 <td>{{ d.phone }}</td>
 <td>{{ d.email }}</td>
+<td>{{ d.available_from}}</td>
+<td>{{ d.available_to}}</td>
+<td>
+    <a href="/edit_doctor/{{ d.doctor_id }}" class="btn btn-sm btn-primary">
+        Edit
+    </a>
+</td>
 
 </tr>
 

@@ -128,6 +128,7 @@ overflow:hidden;
 <th>Date</th>
 <th>Time</th>
 <th>Status</th>
+<th>Reason</th>
 <th>Action</th>
 </tr>
 </thead>
@@ -149,16 +150,16 @@ overflow:hidden;
 <span class="badge bg-warning text-dark">Scheduled</span>
 {% endif %}
 </td>
-
+<td>{{ a.reason_for_visit if a.reason_for_visit else '—' }}</td> 
 <td>
 {% if a.status == 'Scheduled' %}
 <form method="POST" action="/complete/{{ a.appointment_id }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit">Complete</button>
+    <button type="submit", class="btn btn-sm btn-success">Complete</button>
 </form>
 <form method="POST" action="/cancel/{{ a.appointment_id }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit">Cancel</button>
+    <button type="submit", class="btn btn-sm btn-danger">Cancel</button>
 </form>
 {% endif %}
 <a href="/add_record/{{ a.appointment_id }}" class="btn btn-sm btn-primary">+ Record</a>
@@ -170,6 +171,41 @@ overflow:hidden;
 
 </table>
 
+</div>
+
+<div class="card shadow mt-4 p-4">
+    <h5>My Patients</h5>
+
+    {% if my_patients %}
+    <div class="table-responsive">
+        <table class="table table-hover mt-3">
+            <thead class="table-primary">
+                <tr>
+                    <th>Patient</th>
+                    <th>MRN</th>
+                    <th>Last Visit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in my_patients %}
+                <tr>
+                    <td>{{ p.patient_name }}</td>
+                    <td>{{ p.mrn if p.mrn else '—' }}</td>
+                    <td>
+                        {% if p.last_visit %}
+                            {{ p.last_visit.strftime('%b %d, %Y') if p.last_visit.strftime is defined else p.last_visit }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mt-3">No patients found.</p>
+    {% endif %}
 </div>
 
 </div>

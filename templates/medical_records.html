@@ -79,11 +79,13 @@
 
                 <!-- Page Summary -->
                 <div class="card shadow p-4 text-center">
-                    <h5>Your Medical History</h5>
-                    <p class="text-muted mb-0">
-                        View diagnosis, treatment notes, and recorded health information from completed visits.
-                    </p>
-                </div>
+    <h5>Your Medical History</h5>
+    <p class="mb-1"><strong>Name:</strong> {{ name }}</p>
+<p class="mb-2"><strong>MRN:</strong> {{ mrn }}</p>
+    <p class="text-muted mb-0">
+        View diagnosis, treatment notes, and recorded health information from completed visits.
+    </p>
+</div>
 
                 <!-- Medical Records Table -->
                 <div class="card shadow mt-4 p-4">
@@ -94,29 +96,80 @@
                         <table class="table table-hover mt-3 align-middle">
                             <thead class="table-primary">
                                 <tr>
-                                
+                                    <th>Visit Date</th>
+                                    <th>Reason</th>
                                     <th>Doctor</th>
                                     <th>Diagnosis</th>
                                     <th>Treatment</th>
                                     <th>Blood Pressure</th>
                                     <th>Weight</th>
                                     <th>Height</th>
+                                    <th>Prescription</th>
                                 </tr>
                             </thead>
 
                             <tbody>
-                                {% for record in records %}
-                                <tr>
-                                    
-                                    <td>{{ record.doctor_name }}</td>
-                                    <td>{{ record.diagnosis }}</td>
-                                    <td>{{ record.treatment_notes }}</td>
-                                    <td>{{ record.blood_pressure }}</td>
-                                    <td>{{ "%.0f"|format(record.weight) }} lbs</td>
-                                    <td>{{ "%.0f"|format(record.height) }} in</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
+    {% for record in records %}
+    <tr>
+        <td>
+            {% if record.appointment_date %}
+                {{ record.appointment_date.strftime('%b %d, %Y') }}
+            {% else %}
+                —
+            {% endif %}
+        </td>
+
+        <td>
+            <small class="text-muted">
+                {{ record.reason_for_visit if record.reason_for_visit else '—' }}
+            </small>
+        </td>
+
+        <td>{{ record.doctor_name }}</td>
+
+        <td>
+            <strong>{{ record.diagnosis if record.diagnosis else '—' }}</strong>
+        </td>
+
+        <td>
+            {{ record.treatment_notes if record.treatment_notes else '—' }}
+        </td>
+
+        <td>
+            {{ record.blood_pressure if record.blood_pressure else '—' }}
+        </td>
+
+        <td>
+            {% if record.weight is not none %}
+                {{ "%.0f"|format(record.weight) }} lbs
+            {% else %}
+                —
+            {% endif %}
+        </td>
+
+        <td>
+            {% if record.height is not none %}
+                {{ "%.0f"|format(record.height) }} in
+            {% else %}
+                —
+            {% endif %}
+        </td>
+
+        <td>
+            {% if record.medicine_name %}
+                <strong>{{ record.medicine_name }}</strong><br>
+                <small class="text-muted">
+                    {{ record.dosage if record.dosage else '—' }}
+                    {% if record.frequency %}, {{ record.frequency }}{% endif %}
+                    {% if record.duration %} for {{ record.duration }}{% endif %}
+                </small>
+            {% else %}
+                —
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
                         </table>
                     </div>
                     {% else %}

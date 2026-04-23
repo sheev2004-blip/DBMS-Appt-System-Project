@@ -98,7 +98,7 @@
                                 type="time"
                                 name="available_from"
                                 class="form-control"
-                                value="{{ doctor.available_from.strftime('%H:%M') if doctor.available_from else '' }}"
+                                value="{{ doctor.available_from_str }}"
                                 required
                             >
                         </div>
@@ -109,7 +109,7 @@
                                 type="time"
                                 name="available_to"
                                 class="form-control"
-                                value="{{ doctor.available_to.strftime('%H:%M') if doctor.available_to else '' }}"
+                                value="{{ doctor.available_to_str }}"
                                 required
                             >
                         </div>

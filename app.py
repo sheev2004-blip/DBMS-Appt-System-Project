@@ -322,7 +322,8 @@ def doctor():
             p.last_name,
             a.appointment_date,
             a.appointment_time,
-            a.status
+            a.status,
+            a.reason_for_visit
             
         FROM Appointments a
         JOIN Patients p ON a.patient_id = p.patient_id
@@ -677,6 +678,8 @@ def admin():
     """)
     patients = cursor.fetchall()
 
+
+
     # Revenue statistics
     cursor.execute("""
         SELECT SUM(total_amount) AS revenue
@@ -846,14 +849,21 @@ ORDER BY appointment_id DESC""",
 
     # Fetch appointment list
     cursor.execute("""
-        SELECT appointment_date, appointment_time, status, appointment_id
-        FROM Appointments
-        WHERE patient_id = %s
-        ORDER BY appointment_date
+        SELECT
+    a.appointment_date,
+    a.appointment_time,
+    a.status,
+    a.appointment_id,
+    a.reason_for_visit,
+    CONCAT(d.first_name, ' ', d.last_name) AS doctor_name
+FROM Appointments a
+JOIN Doctors d ON a.doctor_id = d.doctor_id
+WHERE a.patient_id = %s
+ORDER BY a.appointment_date
     """, (patient_id,))
     appointments = cursor.fetchall()
 
-
+    reasons = cursor.fetchall
     #Get all patient info
 
     cursor.execute("""SELECT CONCAT(first_name, ' ', last_name) AS patient_name, mrn, date_of_birth, sex, address, smoking_status, alcohol_use, emergency_contact_name,
@@ -862,7 +872,7 @@ ORDER BY appointment_id DESC""",
     patient_info = cursor.fetchone()
 
     if patient_info is None:
-        return redirect('/patient')  # or /patient, whichever fits your flow
+        return redirect('/patient')  
 
     mrn = patient_info['mrn']
     name = patient_info['patient_name']
@@ -873,6 +883,8 @@ ORDER BY appointment_id DESC""",
     alcohol_use = patient_info['alcohol_use']
     emergency_contact_name = patient_info['emergency_contact_name']
     emergency_contact_phone = patient_info['emergency_contact_phone']
+    allergies = patient_info['allergies']
+
 
     return render_template(
         'patient_dashboard.html',
@@ -889,7 +901,8 @@ ORDER BY appointment_id DESC""",
         smoking_status=smoking_status,
         alcohol_use=alcohol_use,
         emergency_contact_name=emergency_contact_name,
-        emergency_contact_phone=emergency_contact_phone
+        emergency_contact_phone=emergency_contact_phone,
+        allergies=allergies
     )
 
 @app.route('/book_appointment', methods=['GET', 'POST'])
@@ -899,13 +912,10 @@ def book_appointment():
 
     if session.get('role') != 'Patient':
         return redirect('/login')
-     
+
     if request.method == 'GET':
-    
         cursor = db.cursor(dictionary=True)
-
         cursor.execute("SELECT * FROM Doctors")
-
         doctors = cursor.fetchall()
 
         return render_template(
@@ -921,7 +931,6 @@ def book_appointment():
         appt_time = request.form['appointment_time']
         reason_for_visit = request.form.get('reason_for_visit', '').strip()
 
-
         cursor.execute("SELECT * FROM Doctors")
         doctors = cursor.fetchall()
 
@@ -932,44 +941,71 @@ def book_appointment():
         """, (doctor_id,))
         doctor = cursor.fetchone()
 
+        if doctor is None:
+            return render_template(
+                'book_appt.html',
+                doctors=doctors,
+                error="Selected doctor was not found."
+            )
+
         selected_date = datetime.strptime(appt_date, "%Y-%m-%d").date()
         today = datetime.today().date()
 
         if selected_date < today:
-            return render_template('book_appt.html', doctors=doctors, error="Cannot book an appointment in the past.")
-        
+            return render_template(
+                'book_appt.html',
+                doctors=doctors,
+                error="Cannot book an appointment in the past."
+            )
+
         selected_time = datetime.strptime(appt_time, "%H:%M").time()
         current_time = datetime.now().time()
 
         if selected_date == today and selected_time <= current_time:
-            return render_template('book_appt.html', doctors=doctors, error="Cannot book an appointment earlier than the current time.")
-        
+            return render_template(
+                'book_appt.html',
+                doctors=doctors,
+                error="Cannot book an appointment earlier than the current time."
+            )
+
         if selected_time.minute not in (0, 30):
-            return render_template('book_appt.html', doctors=doctors, error="Appointments must be booked in 30-minute intervals.")
-        
+            return render_template(
+                'book_appt.html',
+                doctors=doctors,
+                error="Appointments must be booked in 30-minute intervals."
+            )
+
+        if selected_date.weekday() in (5, 6):
+            return render_template(
+                'book_appt.html',
+                doctors=doctors,
+                error="Appointments cannot be booked on weekends."
+            )
+
         available_from_td = doctor['available_from']
         available_to_td = doctor['available_to']
 
-        available_from = time(
-            hour=available_from_td.seconds // 3600,
-            minute=(available_from_td.seconds % 3600) // 60
-        )
+        if available_from_td is not None and available_to_td is not None:
+            available_from = time(
+                hour=available_from_td.seconds // 3600,
+                minute=(available_from_td.seconds % 3600) // 60
+            )
 
-        available_to = time(
-            hour=available_to_td.seconds // 3600,
-            minute=(available_to_td.seconds % 3600) // 60
-        )
+            available_to = time(
+                hour=available_to_td.seconds // 3600,
+                minute=(available_to_td.seconds % 3600) // 60
+            )
 
-        if available_from and available_to:
             if selected_time < available_from or selected_time >= available_to:
-                return render_template('book_appt.html', doctors=doctors, error="Selected time is outside this doctor's availability.")
-            
-        if selected_date.weekday() in (5, 6):
-            return render_template('book_appt.html', doctors=doctors, error="Appointments cannot be booked on weekends.")
+                return render_template(
+                    'book_appt.html',
+                    doctors=doctors,
+                    error="Selected time is outside this doctor's availability."
+                )
 
         cursor.execute(
-        "SELECT patient_id FROM Patients WHERE user_id = %s",
-        (session['user_id'],)
+            "SELECT patient_id FROM Patients WHERE user_id = %s",
+            (session['user_id'],)
         )
         result = cursor.fetchone()
 
@@ -978,32 +1014,28 @@ def book_appointment():
 
         patient_id = result['patient_id']
 
-        cursor.execute(
-        "SELECT doctor_id, available_from, available_to FROM Doctors WHERE doctor_id = %s",
-        (doctor_id,)
-        )
-        doctor = cursor.fetchone()
-
-        if doctor is None:
-            return redirect('/patient')
-        if (doctor['available_from'] is not None and doctor['available_to'] is not None):
-            if time < str(doctor['available_from']) or time > str(doctor['available_to']):
-                return redirect('/book_appointment')
-        
-        cursor.execute(
-        "SELECT appointment_id FROM Appointments WHERE doctor_id = %s AND appointment_date = %s AND appointment_time = %s AND status = 'Scheduled'",
-        (doctor_id, date, time)
-        )
+        cursor.execute("""
+            SELECT appointment_id
+            FROM Appointments
+            WHERE doctor_id = %s
+              AND appointment_date = %s
+              AND appointment_time = %s
+              AND status = 'Scheduled'
+        """, (doctor_id, appt_date, appt_time))
         result = cursor.fetchone()
 
         if result:
-            return render_template('book_appt.html', error='Error: Time slot already taken')
-        
+            return render_template(
+                'book_appt.html',
+                doctors=doctors,
+                error='Error: Time slot already taken'
+            )
+
         cursor.execute("""
-        INSERT INTO Appointments
-        (patient_id, doctor_id, appointment_date, appointment_time, status, reason_for_visit)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """, (patient_id, doctor_id, date, time, 'Scheduled', reason_for_visit))
+            INSERT INTO Appointments
+            (patient_id, doctor_id, appointment_date, appointment_time, status, reason_for_visit)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (patient_id, doctor_id, appt_date, appt_time, 'Scheduled', reason_for_visit))
         db.commit()
 
         return redirect('/patient')
@@ -1155,6 +1187,23 @@ def edit_doctor(doctor_id):
         WHERE doctor_id = %s
     """, (doctor_id,))
     doctor = cursor.fetchone()
+
+    if doctor is not None:
+        if doctor['available_from'] is not None:
+            total_seconds = doctor['available_from'].seconds
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            doctor['available_from_str'] = f"{hours:02d}:{minutes:02d}"
+        else:
+            doctor['available_from_str'] = ''
+
+        if doctor['available_to'] is not None:
+            total_seconds = doctor['available_to'].seconds
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            doctor['available_to_str'] = f"{hours:02d}:{minutes:02d}"
+        else:
+            doctor['available_to_str'] = ''
 
     if doctor is None:
         return redirect('/admin')

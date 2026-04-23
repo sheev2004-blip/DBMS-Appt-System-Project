@@ -221,6 +221,7 @@
                            <tr>
                                <th>Date</th>
                                <th>Time</th>
+                               <th>Doctor</th>
                                <th>Status</th>
                                <th>Reason</th>
                                <th>Cancel</th>
@@ -232,6 +233,7 @@
                             <tr>
                                 <td>{{ a.appointment_date }}</td>
                                 <td>{{ a.appointment_time }}</td>
+                                <td>Dr. {{ a.doctor_name }}</td>
                                 <td>
                                     {% if a.status == 'Completed' %}
                                         <span class="badge bg-success">Completed</span>

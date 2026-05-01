@@ -108,6 +108,7 @@ Constraints and validation logic ensure:
 ```bash
 git clone https://github.com/sheev2004-blip/DBMS-Appt-System-Project.git
 cd DBMS-Appt-System-Project
+```
 
 ### 2. Set Up the Database
 
@@ -120,6 +121,7 @@ database/clinic_db.sql
 
 ```bash
 pip install flask mysql-connector-python
+```
 
 ### 4. Configure Environment Variables
 
@@ -131,11 +133,13 @@ DB_USER=root
 DB_PASSWORD=yourpassword
 DB_NAME=clinic_db
 SECRET_KEY=your_secret_key
+```
 
 ### 5. Run the Application
 
 ```bash
 python app.py
+```
 
 - Then open:
 
